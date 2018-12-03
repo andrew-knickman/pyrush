@@ -21,47 +21,19 @@ Uses Papyrus syntax to pass commands to system
 #define clear() printf("\033[H\033[J") 
 #define pyrushdelim " \n"
 
-//run a program
-int pyrush_run(char **args)
-{
-	pid_t pid;
-	int run;
 
-	pid = fork();
-	if(pid == 0)
-	{
-		if(execvp(args[0],args) == -1)
-		{
-			perror("Pyrush");
-		}
-		exit(EXIT_FAILURE);
-	}
-	else if(pid < 0)
-	{
-		perror("Pyrush");
-	}
-	else
-	{
-		do
-		{
-			waitpid(pid, &run, WUNTRACED);
-		}while(!WIFEXITED(run) && !WIFSIGNALED(run));
-	}
-	return 1;
-}
-
-//EDITS START HERE
+//***********************EDITS START HERE
 
 int lsh_cd(char **args);
 int lsh_help(char **args);
 int lsh_exit(char **args);
-char *builtin_str[] = {
+char *pyrush_bins[] = {
   "cd",
   "help",
   "exit"
 };
 
-int (*builtin_func[]) (char **) = {
+int (*pyrush_bin_cmds[]) (char **) = {
   &lsh_cd,
   &lsh_help,
   &lsh_exit
@@ -100,26 +72,57 @@ int lsh_exit(char **args)
 }
 
 
-//EDITS END HERE
+//***********************EDITS END HERE
 
+
+//run a program
+int pyrush_run(char **args)
+{
+	printf("\nI got to run");
+	pid_t pid;
+	int run;
+
+	pid = fork();
+	if(pid == 0)
+	{
+		if(execvp(args[0],args) == -1)
+		{
+			perror("Pyrush");
+		}
+		exit(EXIT_FAILURE);
+	}
+	else if(pid < 0)
+	{
+		perror("Pyrush");
+	}
+	else
+	{
+		do
+		{
+			waitpid(pid, &run, WUNTRACED);
+		}while(!WIFEXITED(run) && !WIFSIGNALED(run));
+	}
+	return 1;
+}
 
 //execute a built-in command or run a program
 int pyrush_EXEC(char **args)
 {
+	printf("\nI got to EXEC");
 	int run = 0;
 	int i;
 
 	//check for no input
 	if(args[0] == NULL)
 	{
-		printf("%s did not declare a move...", username);
+		printf("\n%s did not declare a move...", username);
 		run = 1;
 		return run;
 	}
-	for(i = 0; i < lsh_num_builtins(); i++)
+	for(i = 0; i < sizeof(pyrush_bins) / sizeof(char *); i++)
 	{
-		if(strcmp(args[0], builtin_str[i] ==0))
-			return (*builtin_func[i])(args);
+		if(strcmp(args[0], pyrush_bins[i])==0)
+			return (*pryush_bin_cmds[i])(args);
 	}
 
 	return pyrush_run(args);
@@ -127,6 +130,8 @@ int pyrush_EXEC(char **args)
 //tokenize pyrush input
 char **pyrush_getTKN(char *cmd)
 {
+	printf("\nI got to getTKN");
+
 	//allocate token parsing memory
 	char **tknbf = malloc(sizeof(char*) * PYRUSHTKSZ);;
 	//token pointer
@@ -156,8 +161,9 @@ char **pyrush_getTKN(char *cmd)
 }
 
 //read pyrush input
-char *pyrush_getCMD()
+char *pyrush_getCMD(void)
 {
+	printf("\nI got to getCMD\n");
 	//allocate buffer memory
 	char *bf = malloc(sizeof(char) * PYRUSHBFSZ);;
 	//reset position
@@ -167,7 +173,7 @@ char *pyrush_getCMD()
 
 	do
 	{
-		//error if memory not allocated
+		//error if memory not allocated or reallocated
 		if(!bf)
 		{
 		fprintf(stderr, "\nUnable to allocate memory...");
@@ -176,21 +182,26 @@ char *pyrush_getCMD()
 
 		//read characters
 		c = getchar();
-		if(c != EOF || c!= '\n')
+
+		if(c == EOF)
 		{
-			bf[pos] = c;
-			pos++;
+			exit(EXIT_SUCCESS);
 		}
 		else if(c == '\n')
 		{
 			bf[pos] = '\0';
-			pos++;
-
+			return bf;
 		}
-		else if(c == EOF)
+		else
 		{
-			add_history(bf);
-			exit(EXIT_SUCCESS);
+			bf[pos] = c;
+		}
+
+		pos++;
+
+		if (pos >= PYRUSHBFSZ) 
+		{
+			bf = realloc(bf, PYRUSHBFSZ+1024);
 		}
 	}while(1);
 }
@@ -199,11 +210,62 @@ void printDir()
 {
 	char cwd[PYRUSHBFSZ];
 	getcwd(cwd, sizeof(cwd));
-	printf("\nIn the world of %s", cwd);
+	int loc = 0;
+	char *loclist[6]; //list of location indicators
+	loclist[0] = "In the world of";
+	loclist[1] = "in the land of";
+	loclist[2] = "in the nation of";
+	loclist[3] = "in the province of";
+	loclist[4] = "in the town of";
+	loclist[5] = "in the place of";
+	for(char* p = cwd; p = strchr(p, '/'); p++)
+	{
+		switch(loc)
+		{
+			case 0:
+			{
+				*p = *loclist[0];
+				loc++;
+				break;
+			}
+			case 1:
+			{				
+				*p = *loclist[1];
+				loc++;
+				break;
+			}
+			case 2:
+			{
+				*p = *loclist[2];
+				loc++;
+				break;
+			}
+			case 3:
+			{
+				*p = *loclist[3];
+				loc++;
+				break;
+			}
+			case 4:
+			{
+				*p = *loclist[4];
+				loc++;
+				break;
+			}
+			default:
+			{
+				*p = *loclist[5];
+				loc++;
+				break;
+			}
+		}
+	}
+	printf("\nYou are ");
+	printf("%s", cwd);
 }
 
 //run the pyrush loop
-void pyrush_loop()
+void pyrush_loop(void)
 {
 	char *cmd; //line of instruction
 	char **args;
@@ -211,14 +273,14 @@ void pyrush_loop()
 	do
 	{
 		printDir();
-		printf("\nWhat's your next move?");
+		printf("\n%s, what's your next move?\n", username);
 		cmd = pyrush_getCMD();
 		args = pyrush_getTKN(cmd);
 		run = pyrush_EXEC(args);
 
 		free(cmd);
 		free(args);
-	}while(run==1);
+	}while(run);
 
 	printf("\n");
 }
@@ -235,14 +297,16 @@ void pyrush_init()
 
 	printf("\n");
 	
-	printf("\n%s (user) is exploring the Pyrush System-to-Game environment", username);
-	printf("\nPlease wait while Pyrush is initialized...\n");
-	sleep(10);
+	printf("\n%s is exploring the Pyrush System-to-Game World", username);
+	printf("\nWelcome to Pyrush, %s\n", username);
+	sleep(1);
 
 	pyrush_loop();
 }
-int main()
+int main(int argc, char **argv)
 {
 	//initialize pyrush
 	pyrush_init();
+
+	return EXIT_SUCCESS;
 }

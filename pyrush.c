@@ -21,54 +21,82 @@ Uses Papyrus syntax to pass commands to system
 #define clear() printf("\033[H\033[J") 
 #define pyrushdelim " \n"
 
-
 //***********************EDITS START HERE
 
-int lsh_cd(char **args);
-int lsh_help(char **args);
-int lsh_exit(char **args);
-char *pyrush_bins[] = {
-  "cd",
-  "help",
-  "exit"
+//built-in command function declaratations
+int pyrushCOC(char **args);
+int pyrushHelp(char **args);
+int pyrushQQQ(char **args);
+int pyrushMoveTo(char **args);
+int pyrushTime(char **args);
+
+void printDirError(char **args)
+{
+	printf("\nNo such thing as '");
+	for(int i=0; i < sizeof(args); i++)
+	{
+		if(args[i] != NULL)
+		{
+			if(i < (sizeof(args) - 1) && args[i+1] == NULL)
+				printf("%s", args[i]);
+			else
+				printf("%s ", args[i]);
+		}
+	}
+	printf("' exists in this world \n(could not find command, file, or directory)\n");
+}
+char *pyrushBINS[] = {
+  "CenterOnCell",	//cd equivalent, https://www.creationkit.com/index.php?title=CenterOnCell
+  "Help",			//help equivalent, https://www.creationkit.com/index.php?title=Help
+  "QuitGame",		//exit equivalent, https://www.creationkit.com/index.php?title=QuitGame
+  "MoveTo",			//file transfer, https://www.creationkit.com/index.php?title=MoveTo
+  "GetCurrentTime"	//date equivalent, https://www.creationkit.com/index.php?title=GetCurrentTime
 };
-
-int (*pyrush_bin_cmds[]) (char **) = {
-  &lsh_cd,
-  &lsh_help,
-  &lsh_exit
+//built in commands
+int (*pyrushBinCMDSs[]) (char **) = 
+{
+  &pyrushCOC,
+  &pyrushHelp,
+  &pyrushQQQ
 };
-int lsh_num_builtins() {
-  return sizeof(builtin_str) / sizeof(char *);
-}
-int lsh_cd(char **args)
+int pyrush_num_bins() 
 {
-  if (args[1] == NULL) {
-    fprintf(stderr, "lsh: expected argument to \"cd\"\n");
-  } else {
-    if (chdir(args[1]) != 0) {
-      perror("lsh");
-    }
-  }
-  return 1;
+  	return sizeof(pyrushBINS) / sizeof(char *);
 }
-int lsh_help(char **args)
+int pyrushCOC(char **args)
 {
-  int i;
-  printf("Stephen Brennan's LSH\n");
-  printf("Type program names and arguments, and hit enter.\n");
-  printf("The following are built in:\n");
+	if (args[1] == NULL) 
+	{
+		fprintf(stderr, "\nNo cell passed...");
+	} 
+	else 
+	{
+		if (chdir(args[1]) != 0) 
+		{
+			printDirError(args);
+		}
+	}
+	return 1;
+}
+int pyrushHelp(char **args)
+{
+	char *link = "https://www.creationkit.com/index.php?title=Category:Console_Commands";
+	int i;
+	printf("\nPYRUSH Help\n");
+	printf("\nEnter commands or programs and their arguments with Papyrus syntax");
+	printf("\nFor list of applicable command formats, see\n\t%s", link);
+	printf("\nThe following commands built in:\n");
 
-  for (i = 0; i < lsh_num_builtins(); i++) {
-    printf("  %s\n", builtin_str[i]);
-  }
-
-  printf("Use the man command for information on other programs.\n");
-  return 1;
+	for (i = 0; i < pyrush_num_bins(); i++) 
+	{
+		printf("  %s\n", pyrushBINS[i]);
+	}
+	return 1;
 }
-int lsh_exit(char **args)
+int pyrushQQQ(char **args)
 {
-  return 0;
+	printf("%s, you are now leaving the Pyrush world.", username);
+  	return 0;
 }
 
 
@@ -78,7 +106,7 @@ int lsh_exit(char **args)
 //run a program
 int pyrush_run(char **args)
 {
-	printf("\nI got to run");
+	//printf("\nI got to run"); used in testing
 	pid_t pid;
 	int run;
 
@@ -87,13 +115,16 @@ int pyrush_run(char **args)
 	{
 		if(execvp(args[0],args) == -1)
 		{
-			perror("Pyrush");
+			//perror("Pyrush");
+			printDirError(args);
 		}
 		exit(EXIT_FAILURE);
 	}
 	else if(pid < 0)
 	{
-		perror("Pyrush");
+		//perror("Pyrush X");
+		printDirError(args);
+
 	}
 	else
 	{
@@ -108,7 +139,7 @@ int pyrush_run(char **args)
 //execute a built-in command or run a program
 int pyrush_EXEC(char **args)
 {
-	printf("\nI got to EXEC");
+	//printf("\nI got to EXEC"); used in testing
 	int run = 0;
 	int i;
 
@@ -119,10 +150,10 @@ int pyrush_EXEC(char **args)
 		run = 1;
 		return run;
 	}
-	for(i = 0; i < sizeof(pyrush_bins) / sizeof(char *); i++)
+	for(i = 0; i < sizeof(pyrushBINS) / sizeof(char *); i++)
 	{
-		if(strcmp(args[0], pyrush_bins[i])==0)
-			return (*pryush_bin_cmds[i])(args);
+		if(strcmp(args[0], pyrushBINS[i])==0)
+			return (*pyrushBinCMDSs[i])(args);
 	}
 
 	return pyrush_run(args);
@@ -130,7 +161,7 @@ int pyrush_EXEC(char **args)
 //tokenize pyrush input
 char **pyrush_getTKN(char *cmd)
 {
-	printf("\nI got to getTKN");
+	//printf("\nI got to getTKN"); used in testing
 
 	//allocate token parsing memory
 	char **tknbf = malloc(sizeof(char*) * PYRUSHTKSZ);;
@@ -163,7 +194,7 @@ char **pyrush_getTKN(char *cmd)
 //read pyrush input
 char *pyrush_getCMD(void)
 {
-	printf("\nI got to getCMD\n");
+	//printf("\nI got to getCMD\n"); used for testing
 	//allocate buffer memory
 	char *bf = malloc(sizeof(char) * PYRUSHBFSZ);;
 	//reset position
@@ -260,7 +291,7 @@ void printDir()
 			}
 		}
 	}
-	printf("\nYou are ");
+	printf("\n%s, you are ", username);
 	printf("%s", cwd);
 }
 
@@ -298,7 +329,7 @@ void pyrush_init()
 	printf("\n");
 	
 	printf("\n%s is exploring the Pyrush System-to-Game World", username);
-	printf("\nWelcome to Pyrush, %s\n", username);
+	printf("\nWelcome to Pyrush, %s. Enter Help for a list of commands.\n", username);
 	sleep(1);
 
 	pyrush_loop();

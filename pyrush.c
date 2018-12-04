@@ -1,7 +1,7 @@
 /*
 PYRUSH Shell
 COSC 439 Project
-Pyrush Team: Andrew Knickman, Niyi Adjayi
+Pyrush Team: Andrew Knickman, Niyi Ajayi
 
 Uses Papyrus syntax to pass commands to system
 */
@@ -18,7 +18,7 @@ Uses Papyrus syntax to pass commands to system
 #include<dirent.h>
 
 
-#define PYRUSHBFSZ 2048
+#define PYRUSHBFSZ 4096
 #define PYRUSHTKSZ 128
 #define username getenv("USER")
 #define clear() printf("\033[H\033[J") 
@@ -92,7 +92,7 @@ char *pyrushBINS[] = {
 	"GetPlayer()", 	//id equivalent, https://www.creationkit.com/index.php?title=GetPlayer_-_Game
 	"GetCurrentLocation()", //ls equivalent, lists all items in current directory as objects in area, https://www.creationkit.com/index.php?title=GetCurrentLocation_-_ObjectReference
 	"GetParentCell()", //pwd equivalent, displays current directory, https://www.creationkit.com/index.php?title=GetParentCell_-_ObjectReference
-	"EquipItem()" //open file 'o' or read 'r' or execute 'e' from command line, https://www.creationkit.com/index.php?title=EquipItem_-_Actor
+	"EquipItem()" //read 'r' or write 'w' from command line, https://www.creationkit.com/index.php?title=EquipItem_-_Actor
 };
 //built in commands
 int (*pyrushBinCMDSs[]) (char **) = 
@@ -107,6 +107,52 @@ int (*pyrushBinCMDSs[]) (char **) =
   &pyrushGetCell,
   &pyrushEquip
 };
+int pyrushEquip(char **args)
+{
+	//https://www.geeksforgeeks.org/c-program-print-contents-file/
+	//https://www.programiz.com/c-programming/examples/write-file
+	FILE *f; //pointer to file to read or write to file
+	char c, txt[255];
+	
+	if(args[3] != NULL)
+	{
+		strcat(txt, args[3]);
+	}
+
+	if(args[1] == NULL)
+	{
+		printError(args);
+		exit(EXIT_FAILURE);
+	}
+
+	printf("\nYou have equipped %s, and are ", args[1]);
+
+	if(strcmp(args[2],"w") == 0)
+	{
+		f = fopen(args[1], "w");
+
+		printf("using it.\n");
+		fprintf(f,"%s", txt);
+
+	}
+	else if(strcmp(args[2], "r") == 0)
+	{
+		f = fopen(args[1], "r");
+
+		printf("observing it.\n");
+		c = fgetc(f);
+    	while (c != EOF) 
+    	{
+			printf ("%c", c); 
+			c = fgetc(f);
+    	}
+	}
+	else
+		printf("doing nothing with it.\n");
+
+	fclose(f);
+	return 1;
+}
 int pyrushGetPlayer(char **args)
 {
 	printf("\n%s is currently playing in the Pyrush world\n", username);
@@ -114,8 +160,6 @@ int pyrushGetPlayer(char **args)
 }
 int pyrushGetLoc(char **args)
 {
-	//https://latesthackingnews.com/2017/03/22/c-program-implement-ls-command/
-	//https://www.geeksforgeeks.org/c-program-list-files-sub-directories-directory/
 	printf("\nYou look around and see the following items\n");
 	struct dirent *de;  //directory entry pointer
 
@@ -137,14 +181,8 @@ int pyrushGetCell(char **args)
 {
 	char cwd[PYRUSHBFSZ];
 	getcwd(cwd, sizeof(cwd));
-	printf("\n%s's current cell: %s", username, cwd);
+	printf("\n%s's is in %s", username, cwd);
 	printf("\n");
-	return 1;
-}
-int pyrushEquip(char **args)
-{
-	printf("\nYou pick up %s and equip it", args[1]);
-	//code to open file
 	return 1;
 }
 int pyrushCOC(char **args)
@@ -171,7 +209,7 @@ int pyrushHelp(char **args)
 	printf("\n---------------PYRUSH Help---------------\n");
 
 	printf("\nEnter commands or programs and their arguments with Papyrus syntax");
-	printf("\nFor list of applicable command formats, see\n\t%s", link);
+	printf("\nFor list of applicable command formats and expected syntax, see\n\t%s", link);
 	printf("\nThe following commands built in:\n");
 
 	for (i = 0; i < sizeof(pyrushBINS) / sizeof(char *); i++) 
@@ -189,9 +227,7 @@ int pyrushQQQ(char **args)
 }
 int pyrushMoveTo(char **args)
 {
-	//https://www.programmingsimplified.com/c-program-copy-file
-	//https://www.geeksforgeeks.org/c-program-copy-contents-one-file-another-file/
-	char fname[80], c;
+	char c;
 	FILE *fsrc, *fdes; //source file and destination file
 	fsrc = fopen(args[1], "r");
 
@@ -218,7 +254,7 @@ int pyrushMoveTo(char **args)
 }
 int pyrushTime(char **args)
 {
-	//https://stackoverflow.com/questions/1442116/how-to-get-the-date-and-time-values-in-a-c-program
+	printf("\n");
 	system("date +%F");
 	system("date +%T");
 	return 1;
@@ -389,8 +425,8 @@ void pyrush_init()
 {
 	clear();
 	printf("\n----------PYRUSH: Papyrus-Based C Shell----------");
-	printf("\n-Pyrush Team: Andrew Knickman and Adeniyi Adjayi-");
-	printf("\n----Enter Help.Show() for a list of commands.----");
+	printf("\n-Pyrush Team: Andrew Knickman and Adeniyi Ajayi--");
+	printf("\n----Enter 'Help' for a list of commands----------");
 	printf("\n------All commands based on Papyrus Syntax-------");
 	printf("\n-----------Shell program written in C------------");
 	printf("\n-----For OOD devs learning operating systems-----");
@@ -398,7 +434,7 @@ void pyrush_init()
 	printf("\n");
 	
 	printf("\n%s is exploring the Pyrush System-to-Game World", username);
-	printf("\nWelcome to Pyrush, %s. Enter Help for a list of commands.\n", username);
+	printf("\nWelcome to Pyrush, %s.\n", username);
 	sleep(1);
 
 	pyrush_loop();

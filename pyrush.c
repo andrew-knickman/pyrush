@@ -14,14 +14,15 @@ Uses Papyrus syntax to pass commands to system
 #include<sys/wait.h> 
 #include<readline/readline.h>
 #include<readline/history.h>
+#include<time.h>
+#include<dirent.h>
+
 
 #define PYRUSHBFSZ 2048
-#define PYRUSHTKSZ 64
+#define PYRUSHTKSZ 128
 #define username getenv("USER")
 #define clear() printf("\033[H\033[J") 
 #define pyrushdelim " \n"
-
-//***********************EDITS START HERE
 
 //built-in command function declaratations
 int pyrushCOC(char **args);
@@ -29,8 +30,12 @@ int pyrushHelp(char **args);
 int pyrushQQQ(char **args);
 int pyrushMoveTo(char **args);
 int pyrushTime(char **args);
+int pyrushGetPlayer(char **args);
+int pyrushGetLoc(char **args);
+int pyrushGetCell(char **args);
+int pyrushEquip(char **args);
 
-void printDirError(char **args)
+void printError(char **args)
 {
 	printf("\nNo such thing as '");
 	for(int i=0; i < sizeof(args); i++)
@@ -45,35 +50,114 @@ void printDirError(char **args)
 	}
 	printf("' exists in this world \n(could not find command, file, or directory)\n");
 }
+char* replaceWithLoc(char* str, char* a)
+{
+	int len  = strlen(str);
+	int lena = strlen(a), lenb;
+	char* loclist[6];
+	loclist[0] = " in the world of ";
+	loclist[1] = ", in the land of ";
+	loclist[2] = ", in the nation of ";
+	loclist[3] = ", in the province of ";
+	loclist[4] = ", in the town of ";
+	loclist[5] = ", in the place of ";
+	int loc = 0;
+	for (char* p = str; p = strstr(p, a); ++p) 
+	{
+		lenb = strlen(loclist[loc]);
+		//shifts memory as needed
+		if (lena != lenb)
+		{
+			memmove(p+lenb, p+lena,
+				len - (p - str) + lenb+32);
+		}
+		memcpy(p, loclist[loc], lenb);
+		if(loc != 5)
+			loc++;
+	}
+	return str; 
+}
+void printDir()
+{
+	char cwd[PYRUSHBFSZ];
+	getcwd(cwd, sizeof(cwd)*2);
+	printf("\n%s, you are%s", username, replaceWithLoc(cwd, "/"));
+}
 char *pyrushBINS[] = {
-  "CenterOnCell",	//cd equivalent, https://www.creationkit.com/index.php?title=CenterOnCell
-  "Help",			//help equivalent, https://www.creationkit.com/index.php?title=Help
-  "QuitGame",		//exit equivalent, https://www.creationkit.com/index.php?title=QuitGame
-  "MoveTo",			//file transfer, https://www.creationkit.com/index.php?title=MoveTo
-  "GetCurrentTime"	//date equivalent, https://www.creationkit.com/index.php?title=GetCurrentTime
+	"Debug.CenterOnCell()",	//cd equivalent, https://www.creationkit.com/index.php?title=CenterOnCell
+	"Help",			//help equivalent, https://www.creationkit.com/index.php?title=Help
+  	"QuitGame",		//exit equivalent, https://www.creationkit.com/index.php?title=QuitGame
+  	"Ref.MoveTo()",	//file transfer, https://www.creationkit.com/index.php?title=MoveTo
+  	"GetCurrentTime",	//date equivalent, https://www.creationkit.com/index.php?title=GetCurrentTime
+	"GetPlayer()", 	//id equivalent, https://www.creationkit.com/index.php?title=GetPlayer_-_Game
+	"GetCurrentLocation()", //ls equivalent, lists all items in current directory as objects in area, https://www.creationkit.com/index.php?title=GetCurrentLocation_-_ObjectReference
+	"GetParentCell()", //pwd equivalent, displays current directory, https://www.creationkit.com/index.php?title=GetParentCell_-_ObjectReference
+	"EquipItem()" //open file 'o' or read 'r' or execute 'e' from command line, https://www.creationkit.com/index.php?title=EquipItem_-_Actor
 };
 //built in commands
 int (*pyrushBinCMDSs[]) (char **) = 
 {
   &pyrushCOC,
   &pyrushHelp,
-  &pyrushQQQ
+  &pyrushQQQ,
+  &pyrushMoveTo,
+  &pyrushTime,
+  &pyrushGetPlayer,
+  &pyrushGetLoc,
+  &pyrushGetCell,
+  &pyrushEquip
 };
-int pyrush_num_bins() 
+int pyrushGetPlayer(char **args)
 {
-  	return sizeof(pyrushBINS) / sizeof(char *);
+	printf("\n%s is currently playing in the Pyrush world\n", username);
+	return 1;
+}
+int pyrushGetLoc(char **args)
+{
+	//https://latesthackingnews.com/2017/03/22/c-program-implement-ls-command/
+	//https://www.geeksforgeeks.org/c-program-list-files-sub-directories-directory/
+	printf("\nYou look around and see the following items\n");
+	struct dirent *de;  //directory entry pointer
+
+	DIR *dr = opendir("."); //directory type pointer
+
+	if (dr == NULL)  //if no directory found
+	{
+		printError(args);
+		exit(EXIT_FAILURE);
+	}
+
+	while ((de = readdir(dr)) != NULL) 
+			printf("%s\n", de->d_name); 
+
+	closedir(dr);
+	return 1;
+}
+int pyrushGetCell(char **args)
+{
+	char cwd[PYRUSHBFSZ];
+	getcwd(cwd, sizeof(cwd));
+	printf("\n%s's current cell: %s", username, cwd);
+	printf("\n");
+	return 1;
+}
+int pyrushEquip(char **args)
+{
+	printf("\nYou pick up %s and equip it", args[1]);
+	//code to open file
+	return 1;
 }
 int pyrushCOC(char **args)
 {
 	if (args[1] == NULL) 
 	{
-		fprintf(stderr, "\nNo cell passed...");
+		fprintf(stderr, "\nNo location was indicated...");
 	} 
 	else 
 	{
 		if (chdir(args[1]) != 0) 
 		{
-			printDirError(args);
+			printError(args);
 		}
 	}
 	return 1;
@@ -81,16 +165,21 @@ int pyrushCOC(char **args)
 int pyrushHelp(char **args)
 {
 	char *link = "https://www.creationkit.com/index.php?title=Category:Console_Commands";
+	char *call = "/usr/bin/firefox https://www.creationkit.com/index.php?title=Category:Console_Commands";
+	system(call);
 	int i;
-	printf("\nPYRUSH Help\n");
+	printf("\n---------------PYRUSH Help---------------\n");
+
 	printf("\nEnter commands or programs and their arguments with Papyrus syntax");
 	printf("\nFor list of applicable command formats, see\n\t%s", link);
 	printf("\nThe following commands built in:\n");
 
-	for (i = 0; i < pyrush_num_bins(); i++) 
+	for (i = 0; i < sizeof(pyrushBINS) / sizeof(char *); i++) 
 	{
 		printf("  %s\n", pyrushBINS[i]);
 	}
+	printf("\n-----------------------------------------\n");
+
 	return 1;
 }
 int pyrushQQQ(char **args)
@@ -98,40 +187,62 @@ int pyrushQQQ(char **args)
 	printf("%s, you are now leaving the Pyrush world.", username);
   	return 0;
 }
+int pyrushMoveTo(char **args)
+{
+	//https://www.programmingsimplified.com/c-program-copy-file
+	//https://www.geeksforgeeks.org/c-program-copy-contents-one-file-another-file/
+	char fname[80], c;
+	FILE *fsrc, *fdes; //source file and destination file
+	fsrc = fopen(args[1], "r");
 
+	if (fsrc == NULL)
+		printError(args);
+	
+	fdes = fopen(args[2], "w");
+	if (fdes == NULL)
+		printError(args);
 
-//***********************EDITS END HERE
-
+	c = fgetc(fsrc);
+	while (c  != EOF)
+	{
+		fputc(c, fdes);
+		c = fgetc(fsrc);
+	}
+	
+	printf("\n%s is now found in %s\n", args[1], args[2]);
+	
+	fclose(fsrc);
+	fclose(fdes);
+	
+	return 1;
+}
+int pyrushTime(char **args)
+{
+	//https://stackoverflow.com/questions/1442116/how-to-get-the-date-and-time-values-in-a-c-program
+	system("date +%F");
+	system("date +%T");
+	return 1;
+}
 
 //run a program
 int pyrush_run(char **args)
 {
 	//printf("\nI got to run"); used in testing
-	pid_t pid;
+	pid_t pid = fork();
 	int run;
 
-	pid = fork();
-	if(pid == 0)
+	if(pid == -1)
+		printError(args);
+	else if(pid == 0)
 	{
-		if(execvp(args[0],args) == -1)
-		{
-			//perror("Pyrush");
-			printDirError(args);
-		}
+		if(execvp(args[0],args) < 0)
+			printError(args);
 		exit(EXIT_FAILURE);
-	}
-	else if(pid < 0)
-	{
-		//perror("Pyrush X");
-		printDirError(args);
-
 	}
 	else
 	{
-		do
-		{
-			waitpid(pid, &run, WUNTRACED);
-		}while(!WIFEXITED(run) && !WIFSIGNALED(run));
+		wait(NULL);
+		return 1;
 	}
 	return 1;
 }
@@ -169,6 +280,8 @@ char **pyrush_getTKN(char *cmd)
 	char *tkn;
 	//reset position
 	int pos = 0;
+	//tokens for reallocation
+	char *tknra;
 
 	tkn = strtok(cmd, pyrushdelim);
 	
@@ -177,12 +290,24 @@ char **pyrush_getTKN(char *cmd)
 		//allocate memory
 		if(!tknbf)
 		{
-		fprintf(stderr, "\nUnable to allocate memory...");
+		fprintf(stderr, "\nPyrush is unable to allocate memory...");
 		exit(EXIT_FAILURE);
 		}
 
 		tknbf[pos] = tkn;
 		pos++;
+
+		if (pos >= PYRUSHTKSZ) 
+		{
+			tknra = tkn;
+			tknbf = realloc(tknbf, (PYRUSHTKSZ+1024) * sizeof(char*));
+      		if (!tknbf) 
+			{
+				free(tknra);
+				fprintf(stderr, "\nPyrush is unable to allocate memory...");
+				exit(EXIT_FAILURE);
+			}
+    	}
 
 		tkn = strtok(NULL, pyrushdelim);
 	}while(tkn != NULL);
@@ -196,7 +321,7 @@ char *pyrush_getCMD(void)
 {
 	//printf("\nI got to getCMD\n"); used for testing
 	//allocate buffer memory
-	char *bf = malloc(sizeof(char) * PYRUSHBFSZ);;
+	char *bf = malloc(sizeof(char) * PYRUSHBFSZ);
 	//reset position
 	int pos = 0;
 	//character to read
@@ -207,7 +332,7 @@ char *pyrush_getCMD(void)
 		//error if memory not allocated or reallocated
 		if(!bf)
 		{
-		fprintf(stderr, "\nUnable to allocate memory...");
+		fprintf(stderr, "\nPyrush is unable to allocate memory...");
 		exit(EXIT_FAILURE);
 		}
 
@@ -220,6 +345,8 @@ char *pyrush_getCMD(void)
 		}
 		else if(c == '\n')
 		{
+
+			add_history(bf);
 			bf[pos] = '\0';
 			return bf;
 		}
@@ -235,64 +362,6 @@ char *pyrush_getCMD(void)
 			bf = realloc(bf, PYRUSHBFSZ+1024);
 		}
 	}while(1);
-}
-
-void printDir()
-{
-	char cwd[PYRUSHBFSZ];
-	getcwd(cwd, sizeof(cwd));
-	int loc = 0;
-	char *loclist[6]; //list of location indicators
-	loclist[0] = "In the world of";
-	loclist[1] = "in the land of";
-	loclist[2] = "in the nation of";
-	loclist[3] = "in the province of";
-	loclist[4] = "in the town of";
-	loclist[5] = "in the place of";
-	for(char* p = cwd; p = strchr(p, '/'); p++)
-	{
-		switch(loc)
-		{
-			case 0:
-			{
-				*p = *loclist[0];
-				loc++;
-				break;
-			}
-			case 1:
-			{				
-				*p = *loclist[1];
-				loc++;
-				break;
-			}
-			case 2:
-			{
-				*p = *loclist[2];
-				loc++;
-				break;
-			}
-			case 3:
-			{
-				*p = *loclist[3];
-				loc++;
-				break;
-			}
-			case 4:
-			{
-				*p = *loclist[4];
-				loc++;
-				break;
-			}
-			default:
-			{
-				*p = *loclist[5];
-				loc++;
-				break;
-			}
-		}
-	}
-	printf("\n%s, you are ", username);
-	printf("%s", cwd);
 }
 
 //run the pyrush loop

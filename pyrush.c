@@ -109,8 +109,6 @@ int (*pyrushBinCMDSs[]) (char **) =
 };
 int pyrushEquip(char **args)
 {
-	//https://www.geeksforgeeks.org/c-program-print-contents-file/
-	//https://www.programiz.com/c-programming/examples/write-file
 	FILE *f; //pointer to file to read or write to file
 	char c, txt[255];
 	

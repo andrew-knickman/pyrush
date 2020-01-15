@@ -1,10 +1,9 @@
 /*
 PYRUSH Shell
 COSC 439 Project
-Written By: Andrew Knickman
-Pyrush Team: Andrew Knickman, Niyi Ajayi
+Andrew Knickman
 
-Uses Papyrus syntax to pass commands to system
+Uses pseudo-Papyrus syntax to pass commands to system
 */
 
 #include<stdio.h>
